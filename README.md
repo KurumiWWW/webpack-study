@@ -69,62 +69,7 @@ webpack ./src/index.js -o ./build/built_product.js --mode=production
 
 1.`webpack`可以处理`js/json`资源，不能处理`css/img`等资源 2.生产环境将 ES6 模块化编译成浏览器可识别的模块化 3.生产环境压缩了 js 代码
 
-## 三、打包样式资源
-
-> webpack.config.js
-
-指示`webpack`的工作内容，当运行`webpack`指令时，会加载其中的配置
-所有构建工具都是基于`nodejs`平台运行，模块化默认采用`commonjs`
-
-```js
-const { resolve } = require("path");
-module.exports = {
-  // webpack配置
-  // 入口起点
-  entry: "./src/index.js",
-  // 输出
-  output: {
-    // 输出文件名
-    filename: "built.js",
-    // 输出路径-一般用绝对路径
-    path: resolve(__dirname, "build"),
-    // 每次打包清理之前遗留的文件
-    clean: true,
-  },
-  // loader配置
-  module: {
-    rules: [
-      // 详细loader配置
-      // 不同文件必须配置不同的loader配置
-      {
-        // 匹配哪些文件
-        test: /\.css$/,
-        // 使用哪些loader进行处理
-        use: [
-          // use数组中loader执行顺序：从右到左（从下到上）
-          // 创建一个style标签，将js种的样式资源插入，添加到页面中
-          "style-loader",
-          // 将css文件编程commonjs模块加载到js中，里面内容是样式字符串
-          "css-loader",
-        ],
-      },
-      {
-        test: /\.scss$/,
-        use: ["style-loader", "css-loader", "scss-loader"],
-      },
-    ],
-  },
-  // plugins配置
-  plugins: [
-    // 详细plugins配置
-  ],
-  // 模式
-  mode: "development",
-  // mode: "production"
-};
-```
-
-## 四、打包 HTML 资源
+## 三、打包 HTML 资源
 
 - Loader: 下载 -> 配置
 - Plugins: 下载 -> 引入 -> 配置
@@ -136,7 +81,13 @@ module.exports = {
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 module.exports = {
   /* ... */
-  plugins: [new HtmlWebpackPlugin()],
+  plugins: [
+    new HtmlWebpackPlugin({
+      template: "./index.html", // 入口html
+      filename: "app.html", // 出口html
+      inject: "body", // 在指定标签中生成script标签
+    }),
+  ],
   /* ... */
 };
 ```
@@ -153,37 +104,7 @@ new HtmlWebpackPlugin({
 });
 ```
 
-## 五、打包图片资源
-
-**`webpack5`已禁用 url-loader**
-
-> webpack.config.js
-
-```js
-module.exports = {
-  /* ... */
-  module: {
-    rules: {
-      test: /\.(jpg|png|gif)$/,
-      type: "asset",
-      parser: {
-        dataUrlCondition: {
-          // 小于8kb会转成base64
-          maxSize: 8 * 1024,
-        },
-      },
-    },
-    rules: {
-      // html-loader负责处理html文件中的引入
-      test: /\.html$/,
-      loader: "html-loader",
-    },
-  },
-  /* ... */
-};
-```
-
-## 六、开发环境配置
+## 四、开发环境配置
 
 ### 1.使用 source map
 
@@ -208,3 +129,215 @@ webpack --watch
 ```
 
 开启 watch mode，使 webpack 能够监听代码的修改从而自动进行响应式的打包操作
+
+### 3.使用 webpack-dev-server
+
+安装 `webpack-dev-server`
+
+```shell
+npm i webpack-dev-server -D
+```
+
+使用`webpack-dev-server`启动项目
+
+```shell
+npx webpack-dev-server
+```
+
+使用`webpack-dev-server`能够实现项目代码实时更新，提高开发效率与`webpack`的编译效率
+
+## 五、资源模块
+
+### 1.简介
+
+资源模块`asset module`
+
+资源模块允许`webpack`打包其他类型的资源文件
+
+资源模块类型`asset module type`通过四种新的类型模块替换所有的`loader`
+
+四种类型：
+
+1. `asset/resource` 发送一个单独的文件并导出`URL`
+2. `asset/inline`导出资源的`uri`
+3. `asset/source`导出资源的源代码
+4. `asset`会在导出单独文件或导出`uri`之间自动进行选择
+
+### 2.resource 资源
+
+打包`png`类型资源
+
+```js
+module: {
+    rules: [
+        {
+            test: /\.png$/,
+            type: "asset/resource",
+        },
+    ],
+},
+```
+
+#### 指定资源输出目录及文件名
+
+1. 在`output`中定义
+
+```js
+output: {
+  assetModuleFilename: "image/test.png"; // 输出至打包路径下的image目录中，命名为test.png
+}
+```
+
+```js
+output: {
+  assetModuleFilename: "image/[contenthash][ext]"; // 输出至打包路径下的image目录中，命名为webpack自动生成的hash，后缀为原文件后缀
+}
+```
+
+2. 在`generator`中定义
+
+```js
+rules: [
+  {
+    test: /\.png$/,
+    type: "asset/resource",
+    generator: {
+      filename: "images/[contenthash][ext]",
+    },
+  },
+];
+```
+
+**对于相同的配置，如同时在`generator`和`output`中定义图片输出路径，将以后面定义的为准**
+
+### 3.inline 资源
+
+```js
+rules: [
+  {
+    test: /\.svg$/,
+    type: "asset/inline",
+  },
+];
+```
+
+使用`inline`打包的图像文件不会出现在`dist`目录下
+
+文件会以`base64`的形式直接添加在`html`文件中
+
+### 4.source 资源
+
+```js
+rules: [
+  {
+    test: /\.txt$/,
+    type: "asset/source",
+  },
+];
+```
+
+可以直接将`txt`文件中的文字（源代码）添加到`html`容器中
+
+### 5.asset 自动解析
+
+```js
+rules: [
+  {
+    test: /\.jpg$/,
+    type: "asset",
+    parser: {
+      dataUrlCondition: {
+        maxSize: 4 * 1024 * 1024, // 文件大于4M生成资源，否则生成base64
+      },
+    },
+  },
+];
+```
+
+## 六、Loader
+
+### 1.加载样式文件
+
+#### 1.1 加载原生 CSS
+
+```js
+rules: [
+    {
+        test: /\.css$/,
+        use: ["style-loader", "css-loader"], // 先使用css-loader识别css文件，再使用style-loader将样式放入文件
+    },
+],
+```
+
+`webpack`不能直接打包样式文件，引入`css`样式后，如要使用`loader`用来加载样式文件
+
+加载`css`，需要使用`style-loader`与`css-loader`
+
+`use`数组中的`loader`会按照**从后向前的顺序**加载：**链式逆序加载**
+
+#### 1.2 加载预处理器
+
+```js
+rules: [
+    {
+        test: /\.(css|scss)$/,
+        use: ["style-loader", "css-loader", "sass-loader"],
+        // 先使用sass-loader将sass转换成css，然后使用css-loader识别css文件，再使用style-loader将样式放入文件
+    },
+],
+```
+
+### 2.抽离和压缩样式文件
+
+#### 2.1 抽离样式
+
+> 安装插件 mini-css-extract-plugin
+
+```shell
+npm i mini-css-extract-plugin -D
+```
+
+```js
+const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+module.exports = {
+  plugins: [
+    new MiniCssExtractPlugin({
+      filename: "styles/[contenthash].css",
+    }),
+  ],
+  module: {
+    rules: [
+      {
+        test: /\.(css|scss)$/,
+        use: [MiniCssExtractPlugin.loader, "css-loader", "sass-loader"],
+      },
+    ],
+  },
+};
+```
+
+将原本的`style-loader`替换成了`mini-css-extract-plugin`插件的`loader`
+
+执行打包命令后，在输出目录下生成了一个`css`文件，，并且引入到了目标`html`文件中
+
+#### 2.2 压缩样式
+
+> 安装插件 css-minimizer-webpack-plugin
+
+```shell
+npm i css-minimizer-webpack-plugin -D
+```
+
+```js
+const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
+module.exports = {
+  // 打包模式需为production
+  mode: "production",
+  // 在优化配置中加载该插件，而不是plugins中
+  optimization: {
+    minimizer: [new CssMinimizerPlugin()],
+  },
+};
+```
+
+执行打包命令后，输出目录下生成了压缩后的样式文件
