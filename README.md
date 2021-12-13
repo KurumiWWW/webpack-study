@@ -341,3 +341,65 @@ module.exports = {
 ```
 
 执行打包命令后，输出目录下生成了压缩后的样式文件
+
+### 3.加载字体文件
+
+```js
+rules:[
+    {
+        test:/\.(woff|woff2|eot|ttf|otf)$/,
+        type:"asset/resource"
+    }
+]
+```
+
+`asset/resource`可以加载任何类型的资源
+
+### 4.加载数据
+
+- JSON：Nodejs本身支持，可直接加载；
+
+- XML：安装 `xml-loader`
+
+  ```shell
+  npm i xml-loader -D
+  ```
+
+  加载后，转化为js对象形式；
+
+- CSV/TSV：安装`csv-loader`
+
+  ```shell
+  npm i csv-loader -D
+  ```
+
+  加载后，转为数组形式。
+
+- toml/yaml/json5: 安装`toml` `yaml` `json5`
+
+  ```shell
+  npm i toml yaml json5 -D
+  ```
+
+  ```js
+  const toml = require("toml");
+  const yaml = require("yaml");
+  const json5 = require("json5");
+  
+  module.exports={
+    /*...*/
+    rules:[
+      {
+        test:/\.toml$/,
+        type:"json",
+        parser:{
+          parse:toml.parse
+        }
+      }
+      // 其余同理
+    ]
+    /*...*/
+  }
+  ```
+
+  

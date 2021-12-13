@@ -1,0 +1,12 @@
+.title {
+  color: red;
+  transition: 0.5s;
+}
+.block-bg {
+  background-image: url(../00d727faa6bc401e934f.jpg);
+  height: 50px;
+  width: 50px;
+}
+.title:hover {
+  color: #ccc;
+}

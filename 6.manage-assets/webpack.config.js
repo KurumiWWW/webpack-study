@@ -19,6 +19,38 @@ module.exports = {
         test: /\.(css|scss)$/,
         use: [MiniCssExtractPlugin.loader, "css-loader", "sass-loader"],
       },
+      {
+        test: /\.png$/,
+        type: "asset/resource",
+        generator: {
+          filename: "images/[contenthash][ext]",
+        },
+      },
+      {
+        test: /\.svg$/,
+        type: "asset/inline",
+      },
+      {
+        test: /\.txt$/,
+        type: "asset/source",
+      },
+      {
+        test: /\.jpg$/,
+        type: "asset",
+        parser: {
+          dataUrlCondition: {
+            maxSize: 4 * 1024 * 1024, // 4M
+          },
+        },
+      },
+      {
+        test: /\.(tsv|csv)$/,
+        use: "csv-loader",
+      },
+      {
+        test: /\.xml$/,
+        use: "xml-loader",
+      },
     ],
   },
   // devtool: "inline-source-map",
