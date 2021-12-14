@@ -345,19 +345,19 @@ module.exports = {
 ### 3.加载字体文件
 
 ```js
-rules:[
-    {
-        test:/\.(woff|woff2|eot|ttf|otf)$/,
-        type:"asset/resource"
-    }
-]
+rules: [
+  {
+    test: /\.(woff|woff2|eot|ttf|otf)$/,
+    type: "asset/resource",
+  },
+];
 ```
 
 `asset/resource`可以加载任何类型的资源
 
 ### 4.加载数据
 
-- JSON：Nodejs本身支持，可直接加载；
+- JSON：Nodejs 本身支持，可直接加载；
 
 - XML：安装 `xml-loader`
 
@@ -365,7 +365,7 @@ rules:[
   npm i xml-loader -D
   ```
 
-  加载后，转化为js对象形式；
+  加载后，转化为 js 对象形式；
 
 - CSV/TSV：安装`csv-loader`
 
@@ -385,21 +385,19 @@ rules:[
   const toml = require("toml");
   const yaml = require("yaml");
   const json5 = require("json5");
-  
-  module.exports={
-    /*...*/
-    rules:[
-      {
-        test:/\.toml$/,
-        type:"json",
-        parser:{
-          parse:toml.parse
-        }
-      }
-      // 其余同理
-    ]
-    /*...*/
-  }
-  ```
 
-  
+  module.exports = {
+    /*...*/
+    rules: [
+      {
+        test: /\.toml$/,
+        type: "json",
+        parser: {
+          parse: toml.parse,
+        },
+      },
+      // 其余同理
+    ],
+    /*...*/
+  };
+  ```
