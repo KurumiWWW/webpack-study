@@ -401,3 +401,178 @@ rules: [
     /*...*/
   };
   ```
+
+## 七、Babel loader
+
+### 1.用途
+
+在开发过程中，一定会用到 ES6 语法，而当`webpack`对项目进行打包时，ES6 相关代码会原封不动地输出，如果浏览器不支持 ES6 语法，则会出现错误。
+
+这时便需要使用到`babel-loader`，将`babel`和`webpack`进行结合
+
+### 2.使用
+
+安装：
+
+```shell
+npm install -D babel-loader @babel/core @babel/preset-env
+```
+
+- **babel-loader**:在`webpack`中应用`babel`解析`ES6`的桥梁
+- **@babel/core**:babel 核心模块
+- **@babel/preset-env**:babel 预设，一组 babel 插件的集合
+
+配置：
+
+```js
+rules: [
+  {
+    test: /\.js$/,
+    // 对除了nodemodules以外的代码进行编译
+    exclude: /node_modules/,
+    use: {
+      loader: "babel-loader",
+      options: {
+        presets: ["@babel/preset-env"],
+      },
+    },
+  },
+];
+```
+
+### 3. Error : regeneratorRuntime is not defined
+
+`regeneratorRuntime `用于在 babel 编译中兼容`async/await`
+
+需要额外添加两个库
+
+- **@babel/runtime** 包含了 `regeneratorRuntime ` 运行时需要的内容
+- **@babel/plugin-transform-runtime** 在需要`regeneratorRuntime `的地方自动`require`导包
+
+配置
+
+```js
+rules: [
+  {
+    test: /\.js$/,
+    // 对除了nodemodules以外的代码进行编译
+    exclude: /node_modules/,
+    use: {
+      loader: "babel-loader",
+      options: {
+        presets: ["@babel/preset-env"],
+        // 添加这个插件
+        plugins: ["@babel/plugin-transform-runtime"],
+      },
+    },
+  },
+];
+```
+
+## 八、代码分离
+
+> 常见的代码分离方法
+
+- **入口起点**：使用`entry`配置，手动的分离代码；
+- **防止重复**：使用 `Entry dependencies` 或者`SplitChunkPlugin`去重和分离代码；
+- **动态导入**：通过模块内联函数调用分离代码
+
+### 1.入口起点
+
+```js
+module.exports = {
+  // 多入口
+  entry: {
+    index: "./src/index.js",
+    another: "./src/another.js",
+  },
+  output: {
+    // 按照entry中的key命名
+    filename: "[name].bundle.js",
+    path: resolve(__dirname, "build"),
+    clean: true,
+  },
+};
+```
+
+打包后的目录：
+
+```
+another.bundle.js
+index.bundle.js
+index.html
+```
+
+**缺点**：如果两个入口都对某个包进行引入（公共模块，如`lodash`等），那么导出的每个`chunk`都会对引用的包进行导入，造成代码冗余
+
+### 2.防止重复
+
+针对代码冗余，修改后的配置：
+
+```js
+  entry: {
+    index: {
+      import: "./src/index.js",
+      dependOn: "shared",
+    },
+    another: {
+      import: "./src/another.js",
+      dependOn: "shared",
+    },
+    shared: "lodash",
+  },
+```
+
+**含义**：如果`index`与`another`都含有`lodash`模块的话，将其抽离出来，创建名为`shared`的`chunk`
+
+打包后的目录：
+
+```
+another.bundle.js
+index.bundle.js
+index.html
+shared.bundle.js
+```
+
+**使用 webpack 内置插件：split-chunks-plugin**
+
+可以自动抽离公共代码
+
+```js
+entry: {
+  index: "./src/index.js",
+  another: "./src/another.js",
+}
+```
+
+```js
+optimization: {
+  splitChunks: {
+    chunks: "all",
+  },
+}
+```
+
+### 3.动态导入
+
+```js
+function getComponent() {
+  return import("lodash").then(({ default: _ }) => {
+    const element = document.createElement("div");
+    element.innerHTML = _.join(["hello", "webpack"], " ");
+    return element;
+  });
+}
+```
+
+利用`import`函数进行动态导入模块，打包后，模块会被拆分为一个单独的`chunk`
+
+**动态-静态混合导入**
+
+需要在配置中添加
+
+```js
+splitChunks: {
+  chunks: "all",
+}
+```
