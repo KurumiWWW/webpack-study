@@ -385,7 +385,7 @@ rules: [
   const toml = require("toml");
   const yaml = require("yaml");
   const json5 = require("json5");
-
+  
   module.exports = {
     /*...*/
     rules: [
@@ -471,7 +471,9 @@ rules: [
 
 ## 八、代码分离
 
-> 常见的代码分离方法
+把多个模块共享的代码分离出去，减少入口文件大小，提高首屏加载速度
+
+常见的代码分离方法:
 
 - **入口起点**：使用`entry`配置，手动的分离代码；
 - **防止重复**：使用 `Entry dependencies` 或者`SplitChunkPlugin`去重和分离代码；
@@ -576,3 +578,152 @@ splitChunks: {
   chunks: "all",
 }
 ```
+
+### 4.懒加载
+
+利用`import`方法实现`js`文件的懒加载
+
+```js
+const button = document.createElement("button");
+button.textContent = "加法";
+button.addEventListener("click", () => {
+  // 魔法注释 用于更改导出后包的命名
+  import(/*webpackChunkName:"math"*/ "./math.js").then(({ add }) => {
+    console.log(add(1, 2));
+  });
+});
+document.body.appendChild(button);
+```
+
+在开发者工具中`Network`可以看到，点击按钮前，并未调用`math.js`文件，点击按钮调用`add`方法时，才调用了该文件，实现了懒加载
+
+### 5.预获取/预加载模块
+
+声明`import`时，使用以下内置指令，让`webpack`输出“`resource hint`资源提示”，告知浏览器：
+
+- **prefetch** 预获取：将来某些导航下可能需要的资源
+- **preload** 预加载：当前导航下可能需要的资源
+
+#### 5.1 prefetch
+
+在`import`时，添加注释
+
+```js
+import(/* webpackPrefetch: true* / "./math.js").then(()=>{})
+```
+
+打包后，页面头部标签里会加入一个`link`元素，预获取了打包后的`math.js`
+
+```html
+<link rel="prefetch" as="script" href="http://127.0.0.1:5500/8.%E4%BB%A3%E7%A0%81%E5%88%86%E7%A6%BB/build/math.bundle.js">
+```
+
+效果：在页面内容加载完毕，网络空闲时，加载`math.bundle.js`
+
+#### 5.2 preload
+
+```js
+/*webpackPreload: true*/
+```
+
+效果类似懒加载。
+
+
+
+**最优方案：使用prefetch预获取**
+
+
+
+## 九、缓存
+
+每次访问网站，浏览器获取服务器上的前端资源都会消耗时间，所以浏览器通常会自带缓存技术，利用缓存，降低网络请求流量，以使网站加载速度更快。
+
+但是，浏览器缓存是**通过文件名判断**，发包后文件名没有更改，浏览器会使用已缓存的版本渲染，对用户和开发都不够友好。
+
+### 1.输出文件名
+
+利用`contenthash`:根据文件内容生成`hash`来修改文件名
+
+```js
+output:{
+	filename: "[name].[contenthash].js"
+}
+```
+
+### 2.缓存第三方库
+
+一般采取将第三方库提取到单独的`vendor chunk`文件中的方法。
+
+第三方库很少像本地代码一样频繁修改，通过以上步骤，利用`client`长效缓存机制，命中缓存从而消除请求，减少向服务器获取资源的同时，还能保证客户端、服务端代码版本一致。
+
+简单来说，就是将第三方代码单独缓存到浏览器，只有本地代码更新时，浏览器缓存才会更新，而第三方库始终可以使用浏览器缓存的。
+
+将`node_modules`路径下所有的库打包进`vendors.js`中：
+
+```js
+  optimization: {
+    splitChunks: {
+      cacheGroups: {
+        vendor: {
+          test: /[\\/]node_modules[\\/]/,
+          name: "vendors",
+          chunks: "all",
+        },
+      },
+    },
+  },
+```
+
+## 十、拆分环境配置
+
+### 1.公共路径
+
+服务器静态资源存放路径：影响打包后的`index.html`文件中路径的引入（默认使用相对路径引入）
+
+```js
+output:{
+  publicPath:"http://localhost:8080/"
+}
+```
+
+### 2.环境变量
+
+配置中的`module.exports`可以定义为函数，有默认的参数，参数为当前的环境变量
+
+````js
+module.exports = env => {
+  return {
+    // 各种webpack配置
+  }
+}
+````
+
+在输入命令行进行打包时，用户可以自己输入环境变量
+
+```shell
+npx webpack --env production --env name="apple"
+```
+
+此时，打印函数中的`env`可以得到
+
+```js
+{
+  WEBPACK_BUNDLE: true,
+  WEBPACK_BUILD: true,
+  production: true,
+  name: 'apple'
+}
+```
+
+根据用户输入的环境变量，对配置做出相应的改变，如打包模式
+
+```js
+mode: env.production? "production" : "development"
+```
+
+> 注意：此时生产环境打包后，js代码并没有被折叠，是因为引入了CssMinimizerPlugin。需要再引入一个js的minimizer插件：terser-webpack-plugin并进行实例化
+
+### 3.拆分配置文件
+
+如果所有环境都在同一个配置文件中，就只能通过2中的方法，使用逻辑判断语句，判断环境变量达到修改配置的目的，如果各环境打包方式区别很大，这样的方法管理起来会十分棘手，就需要针对各环境，对配置文件进行拆分。
+
